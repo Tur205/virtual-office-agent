@@ -13,7 +13,6 @@ st.set_page_config(
 def send_telegram_alert(message):
     """Fungsi alert error ke Telegram milik lu"""
     try:
-        # Mengambil token dan chat ID dari Streamlit Secrets atau Environment
         bot_token = st.secrets.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = st.secrets.get("TELEGRAM_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID")
         
@@ -43,12 +42,12 @@ def main():
         if user_input:
             with st.spinner("🤖 Agent sedang berpikir..."):
                 try:
-                    # Konfigurasi dan pemanggilan Gemini API Asli
+                    # Konfigurasi dan pemanggilan Gemini API
                     api_key = st.secrets["GEMINI_API_KEY"]
                     genai.configure(api_key=api_key)
                     
-                    # Menggunakan model Gemini 1.5 Flash
-                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    # Menggunakan model gemini-1.5-flash-latest yang stabil
+                    model = genai.GenerativeModel("gemini-1.5-flash-latest")
                     response = model.generate_content(user_input)
                     
                     # Menampilkan hasil respons dari AI
@@ -56,7 +55,6 @@ def main():
                     st.write(response.text)
                     
                 except Exception as e:
-                    # Jika gagal, kirim alert ke Telegram dan tampilkan error
                     error_msg = str(e)
                     send_telegram_alert(f"Agent gagal merespons. Error: {error_msg}")
                     st.error(f"Terjadi kesalahan sistem: {error_msg}")
