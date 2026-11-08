@@ -1,7 +1,6 @@
 import os
 import requests
 import streamlit as st
-import google.generativeai as genai
 
 # Konfigurasi halaman Streamlit (Wajib di baris paling atas)
 st.set_page_config(
@@ -42,17 +41,31 @@ def main():
         if user_input:
             with st.spinner("🤖 Agent sedang berpikir..."):
                 try:
-                    # Konfigurasi dan pemanggilan Gemini API menggunakan gemini-pro yang stabil
+                    # Mengambil API Key dari Streamlit Secrets
                     api_key = st.secrets["GEMINI_API_KEY"]
-                    genai.configure(api_key=api_key)
                     
-                    # Menggunakan model gemini-pro agar tidak 404
-                    model = genai.GenerativeModel("gemini-pro")
-                    response = model.generate_content(user_input)
+                    # Menggunakan REST API murni (Gemini 1.5 Flash v1beta endpoint langsung)
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                     
-                    # Menampilkan hasil respons dari AI
-                    st.success("🤖 AI Agent:")
-                    st.write(response.text)
+                    headers = {"Content-Type": "application/json"}
+                    payload = {
+                        "contents": [{
+                            "parts": [{"text": user_input}]
+                        }]
+                    }
+                    
+                    # Kirim request HTTP POST
+                    response = requests.post(url, json=payload, headers=headers, timeout=30)
+                    res_data = response.json()
+                    
+                    # Ambil teks balasan dari struktur JSON Google API
+                    if "candidates" in res_data:
+                        reply_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
+                        st.success("🤖 AI Agent:")
+                        st.write(reply_text)
+                    else:
+                        error_detail = res_data.get("error", {}).get("message", "Unknown error")
+                        raise Exception(f"API Error: {error_detail}")
                     
                 except Exception as e:
                     error_msg = str(e)
