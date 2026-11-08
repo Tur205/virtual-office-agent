@@ -1,5 +1,3 @@
-# Update paksa biar nge-push
-
 import os
 import requests
 import streamlit as st
@@ -46,8 +44,8 @@ def main():
                     # Mengambil API Key dari Streamlit Secrets
                     api_key = st.secrets["GEMINI_API_KEY"]
                     
-                    # Menggunakan endpoint dengan versi gemini-2.5-flash sesuai device lu
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+                    # Menggunakan model gemini-3.8-flash terbaru sesuai anjuran Google AI Studio
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
                     
                     headers = {"Content-Type": "application/json"}
                     payload = {
