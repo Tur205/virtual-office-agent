@@ -27,7 +27,7 @@ def send_telegram_alert(message):
 
 def main():
     st.title("🤖 2D Virtual Office AI Agent")
-    st.markdown("Selamat datang di panel kontrol Virtual Office Agent berbasis Gemini AI!")
+    st.markdown("Selamat datang di panel kontrol Virtual Office Agent!")
 
     # Sidebar untuk info sistem
     with st.sidebar:
@@ -42,12 +42,12 @@ def main():
         if user_input:
             with st.spinner("🤖 Agent sedang berpikir..."):
                 try:
-                    # Konfigurasi dan pemanggilan Gemini API
+                    # Konfigurasi dan pemanggilan Gemini API menggunakan gemini-pro yang stabil
                     api_key = st.secrets["GEMINI_API_KEY"]
                     genai.configure(api_key=api_key)
                     
-                    # Menggunakan format lengkap models/gemini-1.5-flash
-                    model = genai.GenerativeModel("models/gemini-1.5-flash")
+                    # Menggunakan model gemini-pro agar tidak 404
+                    model = genai.GenerativeModel("gemini-pro")
                     response = model.generate_content(user_input)
                     
                     # Menampilkan hasil respons dari AI
