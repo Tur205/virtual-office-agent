@@ -39,13 +39,13 @@ def main():
     
     if st.button("Kirim Perintah", type="primary"):
         if user_input:
-            with st.spinner("🤖 Agent sedang berpikir..."):
+            with st.spinner("🤖 Agent sedang berpikir (menghubungi server Google)..."):
                 try:
                     # Mengambil API Key dari Streamlit Secrets
                     api_key = st.secrets["GEMINI_API_KEY"]
                     
-                    # Menggunakan model gemini-3.8-flash terbaru sesuai anjuran Google AI Studio
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
+                    # Endpoint menggunakan model stabil
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                     
                     headers = {"Content-Type": "application/json"}
                     payload = {
@@ -54,8 +54,8 @@ def main():
                         }]
                     }
                     
-                    # Kirim request HTTP POST
-                    response = requests.post(url, json=payload, headers=headers, timeout=30)
+                    # Timeout dinaikkan jadi 60 detik agar lebih longgar
+                    response = requests.post(url, json=payload, headers=headers, timeout=60)
                     res_data = response.json()
                     
                     # Ambil teks balasan dari struktur JSON Google API
@@ -64,7 +64,7 @@ def main():
                         st.success("🤖 AI Agent:")
                         st.write(reply_text)
                     else:
-                        error_detail = res_data.get("error", {}).get("message", "Unknown error")
+                        error_detail = res_data.get("error", {}).get("message", "API Key salah atau belum di-set di Streamlit Secrets")
                         raise Exception(f"API Error: {error_detail}")
                     
                 except Exception as e:
