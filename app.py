@@ -1,6 +1,7 @@
 import os
 import requests
 import streamlit as st
+import google.generativeai as genai
 
 # Konfigurasi halaman Streamlit (Wajib di baris paling atas)
 st.set_page_config(
@@ -10,7 +11,7 @@ st.set_page_config(
 )
 
 def send_telegram_alert(message):
-    """Fungsi alert error ke Telegram milik lu"""
+    """Fungsi alert error ke Telegram"""
     try:
         bot_token = st.secrets.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = st.secrets.get("TELEGRAM_CHAT_ID") or os.environ.get("TELEGRAM_CHAT_ID")
@@ -33,46 +34,66 @@ def main():
         st.header("⚙️ Status Sistem")
         st.success("Server Aktif & Siap")
         st.info("Environment: Streamlit Cloud / Local")
+        if st.button("🗑️ Hapus Riwayat Chat"):
+            st.session_state.messages = []
+            st.rerun()
 
-    # Area Input Chat / Perintah ke AI
-    user_input = st.text_input("Ketik perintah atau pesan untuk AI Agent:")
-    
-    if st.button("Kirim Perintah", type="primary"):
-        if user_input:
+    # Ambil API Key secara aman (mencoba dari Secrets lalu Env Variable)
+    api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+
+    if not api_key:
+        st.error("⚠️ GEMINI_API_KEY tidak ditemukan! Harap masukkan di Streamlit Secrets atau Environment Variable.")
+        st.stop()
+
+    # Inisialisasi model Gemini
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+    except Exception as e:
+        error_msg = f"Gagal inisialisasi SDK Gemini: {e}"
+        send_telegram_alert(error_msg)
+        st.error(error_msg)
+        return
+
+    # Inisialisasi riwayat chat di Session State
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Tampilkan riwayat chat di UI
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Input Chat Kompatibel Streamlit Terbaru
+    if prompt := st.chat_input("Ketik perintah atau pesan untuk AI Agent..."):
+        # 1. Tampilkan pesan user
+        st.chat_message("user").markdown(prompt)
+        
+        # 2. Format riwayat percakapan untuk SDK Gemini
+        formatted_history = []
+        for m in st.session_state.messages:
+            role = "user" if m["role"] == "user" else "model"
+            formatted_history.append({"role": role, "parts": [m["content"]]})
+
+        # 3. Kirim ke Gemini API
+        with st.chat_message("assistant"):
             with st.spinner("🤖 Agent sedang berpikir..."):
                 try:
-                    # Mengambil API Key dari Streamlit Secrets
-                    api_key = st.secrets["GEMINI_API_KEY"]
+                    chat = model.start_chat(history=formatted_history)
+                    response = chat.send_message(prompt)
+                    reply_text = response.text
+
+                    # Tampilkan balasan
+                    st.markdown(reply_text)
                     
-                    # Menggunakan REST API murni (Gemini 1.5 Flash v1beta endpoint langsung)
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-                    
-                    headers = {"Content-Type": "application/json"}
-                    payload = {
-                        "contents": [{
-                            "parts": [{"text": user_input}]
-                        }]
-                    }
-                    
-                    # Kirim request HTTP POST
-                    response = requests.post(url, json=payload, headers=headers, timeout=30)
-                    res_data = response.json()
-                    
-                    # Ambil teks balasan dari struktur JSON Google API
-                    if "candidates" in res_data:
-                        reply_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
-                        st.success("🤖 AI Agent:")
-                        st.write(reply_text)
-                    else:
-                        error_detail = res_data.get("error", {}).get("message", "Unknown error")
-                        raise Exception(f"API Error: {error_detail}")
-                    
+                    # Simpan ke session state
+                    st.session_state.messages.append({"role": "user", "content": prompt})
+                    st.session_state.messages.append({"role": "assistant", "content": reply_text})
+
                 except Exception as e:
                     error_msg = str(e)
                     send_telegram_alert(f"Agent gagal merespons. Error: {error_msg}")
                     st.error(f"Terjadi kesalahan sistem: {error_msg}")
-        else:
-            st.warning("Mohon masukkan pesan terlebih dahulu!")
 
 if __name__ == "__main__":
     main()
