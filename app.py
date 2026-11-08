@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import streamlit as st
 
@@ -39,12 +40,9 @@ def main():
     
     if st.button("Kirim Perintah", type="primary"):
         if user_input:
-            with st.spinner("🤖 Agent sedang berpikir..."):
+            with st.spinner("🤖 Agent sedang menghubungi server Google (Auto-retry aktif)..."):
                 try:
-                    # Mengambil API Key dari Streamlit Secrets
                     api_key = st.secrets["GEMINI_API_KEY"]
-                    
-                    # Menggunakan model gemini-3.8-flash sesuai rekomendasi resmi
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
                     
                     headers = {"Content-Type": "application/json"}
@@ -54,9 +52,23 @@ def main():
                         }]
                     }
                     
-                    # Kirim request HTTP POST dengan timeout 60 detik
-                    response = requests.post(url, json=payload, headers=headers, timeout=60)
-                    res_data = response.json()
+                    # Mekanisme Auto-Retry (Mencoba hingga 3 kali jika server overload)
+                    max_retries = 3
+                    res_data = None
+                    
+                    for attempt in range(max_retries):
+                        response = requests.post(url, json=payload, headers=headers, timeout=60)
+                        res_data = response.json()
+                        
+                        # Jika sukses atau error bukan karena high demand, hentikan looping
+                        if "candidates" in res_data or "error" not in res_data:
+                            break
+                        
+                        error_msg_check = res_data.get("error", {}).get("message", "")
+                        if "high demand" in error_msg_check.lower() and attempt < max_retries - 1:
+                            time.sleep(2) # Tunggu 2 detik sebelum mencoba ulang
+                            continue
+                        break
                     
                     # Ambil teks balasan dari struktur JSON Google API
                     if "candidates" in res_data:
@@ -64,7 +76,7 @@ def main():
                         st.success("🤖 AI Agent:")
                         st.write(reply_text)
                     else:
-                        error_detail = res_data.get("error", {}).get("message", "API Error terjadi")
+                        error_detail = res_data.get("error", {}).get("message", "Server Google sedang sibuk")
                         raise Exception(f"API Error: {error_detail}")
                     
                 except Exception as e:
